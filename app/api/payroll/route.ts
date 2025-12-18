@@ -3,7 +3,7 @@ import { dataStore } from "@/lib/data-store"
 
 export async function GET() {
   try {
-    const payrollRuns = dataStore.getPayrollRuns()
+    const payrollRuns = await dataStore.getPayrollRuns()
     return NextResponse.json(payrollRuns)
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch payroll runs" }, { status: 500 })
@@ -23,9 +23,9 @@ export async function POST(request: Request) {
       status: "Draft" as const,
     }
 
-    const created = dataStore.addPayrollRun(payrollRun)
+    const created = await dataStore.addPayrollRun(payrollRun)
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

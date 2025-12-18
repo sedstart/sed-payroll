@@ -4,7 +4,7 @@ import type { Employee } from "@/lib/types"
 
 export async function GET() {
   try {
-    const employees = dataStore.getEmployees()
+    const employees = await dataStore.getEmployees()
     return NextResponse.json(employees)
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch employees" }, { status: 500 })
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
       id: `emp-${Date.now()}`,
       ...body,
     }
-    const created = dataStore.addEmployee(employee)
+    const created = await dataStore.addEmployee(employee)
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

@@ -9,236 +9,73 @@ import type {
   Payslip,
   AuditLog,
 } from "./types"
+import { getRedisClient } from "./redis"
 
-// In-memory data store (will be replaced with Redis/DB later)
 class DataStore {
-  private employees: Map<string, Employee> = new Map()
-  private salaryStructures: Map<string, SalaryStructure> = new Map()
-  private attendance: Map<string, Attendance> = new Map()
-  private leaves: Map<string, Leave> = new Map()
-  private leaveBalances: Map<string, LeaveBalance> = new Map()
-  private deductions: Map<string, Deduction> = new Map()
-  private payrollRuns: Map<string, PayrollRun> = new Map()
-  private payslips: Map<string, Payslip> = new Map()
-  private auditLogs: AuditLog[] = []
-
-  constructor() {
-    this.seedData()
+  // Redis keys
+  private KEYS = {
+    EMPLOYEES: "payroll:employees",
+    SALARY_STRUCTURES: "payroll:salary_structures",
+    ATTENDANCE: "payroll:attendance",
+    LEAVES: "payroll:leaves",
+    LEAVE_BALANCES: "payroll:leave_balances",
+    DEDUCTIONS: "payroll:deductions",
+    PAYROLL_RUNS: "payroll:payroll_runs",
+    PAYSLIPS: "payroll:payslips",
+    AUDIT_LOGS: "payroll:audit_logs",
   }
 
-  private seedData() {
-    // Seed Salary Structures
-    const salaryStructures: SalaryStructure[] = [
-      {
-        id: "sal-1",
-        name: "Junior Level",
-        basicSalary: 30000,
-        hra: 12000,
-        specialAllowance: 8000,
-        bonus: 0,
-        variablePay: 0,
-        employerPF: 3600,
-        insurance: 500,
-        effectiveFrom: "2024-01-01",
-      },
-      {
-        id: "sal-2",
-        name: "Mid Level",
-        basicSalary: 50000,
-        hra: 20000,
-        specialAllowance: 15000,
-        bonus: 5000,
-        variablePay: 0,
-        employerPF: 6000,
-        insurance: 1000,
-        effectiveFrom: "2024-01-01",
-      },
-      {
-        id: "sal-3",
-        name: "Senior Level",
-        basicSalary: 80000,
-        hra: 32000,
-        specialAllowance: 28000,
-        bonus: 10000,
-        variablePay: 5000,
-        employerPF: 9600,
-        insurance: 2000,
-        effectiveFrom: "2024-01-01",
-      },
-    ]
-    salaryStructures.forEach((s) => this.salaryStructures.set(s.id, s))
+  private async getRedis() {
+    return await getRedisClient()
+  }
 
-    // Seed Employees
-    const employees: Employee[] = [
-      {
-        id: "emp-1",
-        employeeId: "EMP001",
-        name: "Sarah Johnson",
-        email: "sarah.johnson@company.com",
-        phone: "+1-555-0101",
-        dateOfJoining: "2022-01-15",
-        department: "Engineering",
-        designation: "Senior Software Engineer",
-        employmentType: "Full-time",
-        bankAccount: "1234567890",
-        ifscCode: "BANK0001234",
-        taxId: "TAX123456",
-        salaryStructureId: "sal-3",
-        isActive: true,
-      },
-      {
-        id: "emp-2",
-        employeeId: "EMP002",
-        name: "Michael Chen",
-        email: "michael.chen@company.com",
-        phone: "+1-555-0102",
-        dateOfJoining: "2023-03-20",
-        department: "Engineering",
-        designation: "Software Engineer",
-        employmentType: "Full-time",
-        bankAccount: "2345678901",
-        ifscCode: "BANK0001234",
-        taxId: "TAX234567",
-        salaryStructureId: "sal-2",
-        isActive: true,
-      },
-      {
-        id: "emp-3",
-        employeeId: "EMP003",
-        name: "Emily Rodriguez",
-        email: "emily.rodriguez@company.com",
-        phone: "+1-555-0103",
-        dateOfJoining: "2023-06-10",
-        department: "Human Resources",
-        designation: "HR Manager",
-        employmentType: "Full-time",
-        bankAccount: "3456789012",
-        ifscCode: "BANK0001234",
-        taxId: "TAX345678",
-        salaryStructureId: "sal-2",
-        isActive: true,
-      },
-      {
-        id: "emp-4",
-        employeeId: "EMP004",
-        name: "James Wilson",
-        email: "james.wilson@company.com",
-        phone: "+1-555-0104",
-        dateOfJoining: "2024-01-05",
-        department: "Marketing",
-        designation: "Marketing Specialist",
-        employmentType: "Full-time",
-        bankAccount: "4567890123",
-        ifscCode: "BANK0001234",
-        taxId: "TAX456789",
-        salaryStructureId: "sal-1",
-        isActive: true,
-      },
-      {
-        id: "emp-5",
-        employeeId: "EMP005",
-        name: "Lisa Anderson",
-        email: "lisa.anderson@company.com",
-        phone: "+1-555-0105",
-        dateOfJoining: "2022-08-12",
-        department: "Finance",
-        designation: "Senior Accountant",
-        employmentType: "Full-time",
-        bankAccount: "5678901234",
-        ifscCode: "BANK0001234",
-        taxId: "TAX567890",
-        salaryStructureId: "sal-2",
-        isActive: true,
-      },
-      {
-        id: "emp-6",
-        employeeId: "EMP006",
-        name: "David Kim",
-        email: "david.kim@company.com",
-        phone: "+1-555-0106",
-        dateOfJoining: "2024-02-01",
-        department: "Engineering",
-        designation: "Junior Developer",
-        employmentType: "Contract",
-        bankAccount: "6789012345",
-        ifscCode: "BANK0001234",
-        taxId: "TAX678901",
-        salaryStructureId: "sal-1",
-        isActive: true,
-      },
-    ]
-    employees.forEach((e) => this.employees.set(e.id, e))
+  // Helper methods for Redis operations
+  private async hGetAll<T>(key: string): Promise<T[]> {
+    const redis = await this.getRedis()
+    const data = await redis.hGetAll(key)
+    return Object.values(data).map((item) => JSON.parse(item))
+  }
 
-    // Seed Leave Balances
-    employees.forEach((emp) => {
-      this.leaveBalances.set(emp.id, {
-        employeeId: emp.id,
-        casual: 10,
-        sick: 7,
-        paid: 15,
-      })
-    })
+  private async hGet<T>(key: string, field: string): Promise<T | null> {
+    const redis = await this.getRedis()
+    const data = await redis.hGet(key, field)
+    return data ? JSON.parse(data) : null
+  }
 
-    // Seed Attendance for current month
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-    employees.forEach((emp) => {
-      for (let day = 1; day <= today.getDate(); day++) {
-        const date = new Date(currentYear, currentMonth, day)
-        if (date.getDay() !== 0 && date.getDay() !== 6) {
-          // Skip weekends
-          const attId = `att-${emp.id}-${date.toISOString().split("T")[0]}`
-          this.attendance.set(attId, {
-            id: attId,
-            employeeId: emp.id,
-            date: date.toISOString().split("T")[0],
-            status: Math.random() > 0.1 ? "Present" : Math.random() > 0.5 ? "WFH" : "Absent",
-            overtimeHours: Math.random() > 0.8 ? Math.floor(Math.random() * 3) : 0,
-          })
-        }
-      }
-    })
+  private async hSet(key: string, field: string, value: any): Promise<void> {
+    const redis = await this.getRedis()
+    await redis.hSet(key, field, JSON.stringify(value))
+  }
 
-    // Seed Deductions
-    const deductions: Deduction[] = [
-      {
-        id: "ded-1",
-        name: "Income Tax",
-        type: "percentage",
-        value: 10,
-        applicableToAll: true,
-      },
-      {
-        id: "ded-2",
-        name: "Provident Fund",
-        type: "percentage",
-        value: 12,
-        applicableToAll: true,
-      },
-      {
-        id: "ded-3",
-        name: "Health Insurance",
-        type: "fixed",
-        value: 500,
-        applicableToAll: true,
-      },
-    ]
-    deductions.forEach((d) => this.deductions.set(d.id, d))
+  private async hDel(key: string, field: string): Promise<void> {
+    const redis = await this.getRedis()
+    await redis.hDel(key, field)
+  }
+
+  private async lPush(key: string, value: any): Promise<void> {
+    const redis = await this.getRedis()
+    await redis.lPush(key, JSON.stringify(value))
+  }
+
+  private async lRange<T>(key: string, start: number, stop: number): Promise<T[]> {
+    const redis = await this.getRedis()
+    const data = await redis.lRange(key, start, stop)
+    return data.map((item) => JSON.parse(item))
   }
 
   // Employee Methods
-  getEmployees() {
-    return Array.from(this.employees.values())
+  async getEmployees() {
+    return await this.hGetAll<Employee>(this.KEYS.EMPLOYEES)
   }
 
-  getEmployee(id: string) {
-    return this.employees.get(id)
+  async getEmployee(id: string) {
+    return await this.hGet<Employee>(this.KEYS.EMPLOYEES, id)
   }
 
-  addEmployee(employee: Employee) {
-    this.employees.set(employee.id, employee)
-    this.leaveBalances.set(employee.id, {
+  async addEmployee(employee: Employee) {
+    await this.hSet(this.KEYS.EMPLOYEES, employee.id, employee)
+    // Initialize leave balance
+    await this.hSet(this.KEYS.LEAVE_BALANCES, employee.id, {
       employeeId: employee.id,
       casual: 10,
       sick: 7,
@@ -247,47 +84,48 @@ class DataStore {
     return employee
   }
 
-  updateEmployee(id: string, updates: Partial<Employee>) {
-    const employee = this.employees.get(id)
+  async updateEmployee(id: string, updates: Partial<Employee>) {
+    const employee = await this.getEmployee(id)
     if (employee) {
       const updated = { ...employee, ...updates }
-      this.employees.set(id, updated)
+      await this.hSet(this.KEYS.EMPLOYEES, id, updated)
       return updated
     }
     return null
   }
 
-  deleteEmployee(id: string) {
-    return this.employees.delete(id)
+  async deleteEmployee(id: string) {
+    await this.hDel(this.KEYS.EMPLOYEES, id)
+    return true
   }
 
   // Salary Structure Methods
-  getSalaryStructures() {
-    return Array.from(this.salaryStructures.values())
+  async getSalaryStructures() {
+    return await this.hGetAll<SalaryStructure>(this.KEYS.SALARY_STRUCTURES)
   }
 
-  getSalaryStructure(id: string) {
-    return this.salaryStructures.get(id)
+  async getSalaryStructure(id: string) {
+    return await this.hGet<SalaryStructure>(this.KEYS.SALARY_STRUCTURES, id)
   }
 
-  addSalaryStructure(structure: SalaryStructure) {
-    this.salaryStructures.set(structure.id, structure)
+  async addSalaryStructure(structure: SalaryStructure) {
+    await this.hSet(this.KEYS.SALARY_STRUCTURES, structure.id, structure)
     return structure
   }
 
-  updateSalaryStructure(id: string, updates: Partial<SalaryStructure>) {
-    const structure = this.salaryStructures.get(id)
+  async updateSalaryStructure(id: string, updates: Partial<SalaryStructure>) {
+    const structure = await this.getSalaryStructure(id)
     if (structure) {
       const updated = { ...structure, ...updates }
-      this.salaryStructures.set(id, updated)
+      await this.hSet(this.KEYS.SALARY_STRUCTURES, id, updated)
       return updated
     }
     return null
   }
 
   // Attendance Methods
-  getAttendance(employeeId?: string, startDate?: string, endDate?: string) {
-    let records = Array.from(this.attendance.values())
+  async getAttendance(employeeId?: string, startDate?: string, endDate?: string) {
+    let records = await this.hGetAll<Attendance>(this.KEYS.ATTENDANCE)
     if (employeeId) {
       records = records.filter((a) => a.employeeId === employeeId)
     }
@@ -297,53 +135,53 @@ class DataStore {
     return records
   }
 
-  addAttendance(attendance: Attendance) {
-    this.attendance.set(attendance.id, attendance)
+  async addAttendance(attendance: Attendance) {
+    await this.hSet(this.KEYS.ATTENDANCE, attendance.id, attendance)
     return attendance
   }
 
-  updateAttendance(id: string, updates: Partial<Attendance>) {
-    const attendance = this.attendance.get(id)
+  async updateAttendance(id: string, updates: Partial<Attendance>) {
+    const attendance = await this.hGet<Attendance>(this.KEYS.ATTENDANCE, id)
     if (attendance) {
       const updated = { ...attendance, ...updates }
-      this.attendance.set(id, updated)
+      await this.hSet(this.KEYS.ATTENDANCE, id, updated)
       return updated
     }
     return null
   }
 
   // Leave Methods
-  getLeaves(employeeId?: string) {
-    let leaves = Array.from(this.leaves.values())
+  async getLeaves(employeeId?: string) {
+    let leaves = await this.hGetAll<Leave>(this.KEYS.LEAVES)
     if (employeeId) {
       leaves = leaves.filter((l) => l.employeeId === employeeId)
     }
     return leaves
   }
 
-  getLeaveBalance(employeeId: string) {
-    return this.leaveBalances.get(employeeId)
+  async getLeaveBalance(employeeId: string) {
+    return await this.hGet<LeaveBalance>(this.KEYS.LEAVE_BALANCES, employeeId)
   }
 
-  addLeave(leave: Leave) {
-    this.leaves.set(leave.id, leave)
+  async addLeave(leave: Leave) {
+    await this.hSet(this.KEYS.LEAVES, leave.id, leave)
     return leave
   }
 
-  updateLeave(id: string, updates: Partial<Leave>) {
-    const leave = this.leaves.get(id)
+  async updateLeave(id: string, updates: Partial<Leave>) {
+    const leave = await this.hGet<Leave>(this.KEYS.LEAVES, id)
     if (leave) {
       const updated = { ...leave, ...updates }
-      this.leaves.set(id, updated)
+      await this.hSet(this.KEYS.LEAVES, id, updated)
 
       // Update leave balance if approved
       if (updates.status === "Approved" && leave.status !== "Approved") {
-        const balance = this.leaveBalances.get(leave.employeeId)
+        const balance = await this.getLeaveBalance(leave.employeeId)
         if (balance) {
           const leaveType = leave.leaveType.toLowerCase() as "casual" | "sick" | "paid"
           if (leaveType in balance) {
             balance[leaveType] = Math.max(0, balance[leaveType] - leave.days)
-            this.leaveBalances.set(leave.employeeId, balance)
+            await this.hSet(this.KEYS.LEAVE_BALANCES, leave.employeeId, balance)
           }
         }
       }
@@ -354,33 +192,38 @@ class DataStore {
   }
 
   // Deduction Methods
-  getDeductions() {
-    return Array.from(this.deductions.values())
+  async getDeductions() {
+    return await this.hGetAll<Deduction>(this.KEYS.DEDUCTIONS)
+  }
+
+  async addDeduction(deduction: Deduction) {
+    await this.hSet(this.KEYS.DEDUCTIONS, deduction.id, deduction)
+    return deduction
   }
 
   // Payroll Methods
-  getPayrollRuns() {
-    return Array.from(this.payrollRuns.values())
+  async getPayrollRuns() {
+    return await this.hGetAll<PayrollRun>(this.KEYS.PAYROLL_RUNS)
   }
 
-  addPayrollRun(payrollRun: PayrollRun) {
-    this.payrollRuns.set(payrollRun.id, payrollRun)
+  async addPayrollRun(payrollRun: PayrollRun) {
+    await this.hSet(this.KEYS.PAYROLL_RUNS, payrollRun.id, payrollRun)
     return payrollRun
   }
 
-  updatePayrollRun(id: string, updates: Partial<PayrollRun>) {
-    const run = this.payrollRuns.get(id)
+  async updatePayrollRun(id: string, updates: Partial<PayrollRun>) {
+    const run = await this.hGet<PayrollRun>(this.KEYS.PAYROLL_RUNS, id)
     if (run) {
       const updated = { ...run, ...updates }
-      this.payrollRuns.set(id, updated)
+      await this.hSet(this.KEYS.PAYROLL_RUNS, id, updated)
       return updated
     }
     return null
   }
 
   // Payslip Methods
-  getPayslips(employeeId?: string, payrollRunId?: string) {
-    let payslips = Array.from(this.payslips.values())
+  async getPayslips(employeeId?: string, payrollRunId?: string) {
+    let payslips = await this.hGetAll<Payslip>(this.KEYS.PAYSLIPS)
     if (employeeId) {
       payslips = payslips.filter((p) => p.employeeId === employeeId)
     }
@@ -390,18 +233,19 @@ class DataStore {
     return payslips
   }
 
-  addPayslip(payslip: Payslip) {
-    this.payslips.set(payslip.id, payslip)
+  async addPayslip(payslip: Payslip) {
+    await this.hSet(this.KEYS.PAYSLIPS, payslip.id, payslip)
     return payslip
   }
 
   // Audit Log Methods
-  addAuditLog(log: AuditLog) {
-    this.auditLogs.push(log)
+  async addAuditLog(log: AuditLog) {
+    await this.lPush(this.KEYS.AUDIT_LOGS, log)
   }
 
-  getAuditLogs(limit = 50) {
-    return this.auditLogs.slice(-limit).reverse()
+  async getAuditLogs(limit = 50) {
+    const logs = await this.lRange<AuditLog>(this.KEYS.AUDIT_LOGS, 0, limit - 1)
+    return logs
   }
 }
 

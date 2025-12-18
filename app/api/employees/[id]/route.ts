@@ -4,7 +4,7 @@ import { dataStore } from "@/lib/data-store"
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const employee = dataStore.getEmployee(id)
+    const employee = await dataStore.getEmployee(id)
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
@@ -20,13 +20,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params
     const body = await request.json()
-    const updated = dataStore.updateEmployee(id, body)
+    const updated = await dataStore.updateEmployee(id, body)
 
     if (!updated) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",
@@ -45,13 +45,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const deleted = dataStore.deleteEmployee(id)
+    const deleted = await dataStore.deleteEmployee(id)
 
     if (!deleted) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

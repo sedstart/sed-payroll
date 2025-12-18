@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Users, DollarSign, Calendar, FileText, BarChart3, Settings, Clock } from "lucide-react"
+import { LogoutButton } from "./logout-button"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3, id: "nav-dashboard" },
@@ -47,7 +48,7 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t border-border p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <span className="text-sm font-semibold">AD</span>
           </div>
@@ -56,6 +57,7 @@ export function Sidebar() {
             <p className="text-xs text-muted-foreground">admin@company.com</p>
           </div>
         </div>
+        <LogoutButton />
       </div>
     </div>
   )

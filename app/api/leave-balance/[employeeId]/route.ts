@@ -4,7 +4,7 @@ import { dataStore } from "@/lib/data-store"
 export async function GET(request: Request, { params }: { params: Promise<{ employeeId: string }> }) {
   try {
     const { employeeId } = await params
-    const balance = dataStore.getLeaveBalance(employeeId)
+    const balance = await dataStore.getLeaveBalance(employeeId)
 
     if (!balance) {
       return NextResponse.json({ error: "Leave balance not found" }, { status: 404 })

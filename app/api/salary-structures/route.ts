@@ -4,7 +4,7 @@ import type { SalaryStructure } from "@/lib/types"
 
 export async function GET() {
   try {
-    const structures = dataStore.getSalaryStructures()
+    const structures = await dataStore.getSalaryStructures()
     return NextResponse.json(structures)
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch salary structures" }, { status: 500 })
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
       id: `sal-${Date.now()}`,
       ...body,
     }
-    const created = dataStore.addSalaryStructure(structure)
+    const created = await dataStore.addSalaryStructure(structure)
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

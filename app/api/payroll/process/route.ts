@@ -7,16 +7,16 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { payrollRunId } = body
 
-    const employees = dataStore.getEmployees().filter((e) => e.isActive)
-    const deductions = dataStore.getDeductions()
+    const employees = (await dataStore.getEmployees()).filter((e) => e.isActive)
+    const deductions = await dataStore.getDeductions()
     const payslips: Payslip[] = []
 
     for (const employee of employees) {
-      const salaryStructure = dataStore.getSalaryStructure(employee.salaryStructureId)
+      const salaryStructure = await dataStore.getSalaryStructure(employee.salaryStructureId)
       if (!salaryStructure) continue
 
       // Calculate working days and present days
-      const attendance = dataStore.getAttendance(employee.id)
+      const attendance = await dataStore.getAttendance(employee.id)
       const workingDays = attendance.length
       const presentDays = attendance.filter((a) => a.status === "Present" || a.status === "WFH").length
       const leaveDays = workingDays - presentDays
@@ -61,18 +61,18 @@ export async function POST(request: Request) {
         leaveDays,
       }
 
-      dataStore.addPayslip(payslip)
+      await dataStore.addPayslip(payslip)
       payslips.push(payslip)
     }
 
     // Update payroll run status
-    dataStore.updatePayrollRun(payrollRunId, {
+    await dataStore.updatePayrollRun(payrollRunId, {
       status: "Processed",
       processedDate: new Date().toISOString(),
       processedBy: "admin",
     })
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

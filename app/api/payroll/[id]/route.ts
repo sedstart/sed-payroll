@@ -5,13 +5,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params
     const body = await request.json()
-    const updated = dataStore.updatePayrollRun(id, body)
+    const updated = await dataStore.updatePayrollRun(id, body)
 
     if (!updated) {
       return NextResponse.json({ error: "Payroll run not found" }, { status: 404 })
     }
 
-    dataStore.addAuditLog({
+    await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
       userId: "admin",

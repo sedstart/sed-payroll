@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate") || undefined
     const endDate = searchParams.get("endDate") || undefined
 
-    const attendance = dataStore.getAttendance(employeeId, startDate, endDate)
+    const attendance = await dataStore.getAttendance(employeeId, startDate, endDate)
     return NextResponse.json(attendance)
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 })
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       id: `att-${body.employeeId}-${body.date}`,
       ...body,
     }
-    const created = dataStore.addAttendance(attendance)
+    const created = await dataStore.addAttendance(attendance)
     return NextResponse.json(created, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: "Failed to create attendance" }, { status: 500 })
@@ -34,7 +34,7 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json()
     const { id, ...updates } = body
-    const updated = dataStore.updateAttendance(id, updates)
+    const updated = await dataStore.updateAttendance(id, updates)
 
     if (!updated) {
       return NextResponse.json({ error: "Attendance not found" }, { status: 404 })
