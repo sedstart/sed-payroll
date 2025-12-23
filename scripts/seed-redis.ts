@@ -1,6 +1,22 @@
+import { randomUUID } from "crypto"
+import { hashPassword } from "../lib/password"
+import type { User } from "../lib/types"
+
 import "dotenv/config"
 import { getRedisClient } from "../lib/redis"
 import type { Employee, SalaryStructure, Attendance, Deduction } from "../lib/types"
+
+async function clearAllUsers(redis: any) {
+  console.log("[v0] Clearing existing users...")
+  
+  // Get all user keys
+  const userKeys = await redis.keys("user:*")
+  
+  if (userKeys.length > 0) {
+    await redis.del(userKeys)
+    console.log(`[v0] Deleted ${userKeys.length} user keys`)
+  }
+}
 
 async function seedRedisData() {
   console.log("[v0] Starting Redis data seeding...")
@@ -9,6 +25,8 @@ async function seedRedisData() {
 
   try {
     const redis = await getRedisClient()
+
+    await clearAllUsers(redis)
 
     // Clear existing data
     console.log("[v0] Clearing existing data...")
@@ -21,6 +39,12 @@ async function seedRedisData() {
     await redis.del("payroll:payroll_runs")
     await redis.del("payroll:payslips")
     await redis.del("payroll:audit_logs")
+
+    const sessionKeys = await redis.keys("session:*")
+    if (sessionKeys.length > 0) {
+      await redis.del(sessionKeys)
+      console.log(`[v0] Deleted ${sessionKeys.length} session keys`)
+    }
 
     // Seed Salary Structures
     console.log("[v0] Seeding salary structures...")
@@ -184,6 +208,8 @@ async function seedRedisData() {
       )
     }
 
+    await seedUsers(redis, employees)
+
     // Seed Attendance for current month
     console.log("[v0] Seeding attendance records...")
     const today = new Date()
@@ -246,6 +272,46 @@ async function seedRedisData() {
   } catch (error) {
     console.error("[v0] ❌ Error seeding Redis data:", error)
     throw error
+  }
+}
+
+async function seedUsers(redis: any, employees: any[]) {
+  console.log("[v0] Seeding users...")
+
+  // ---------- ADMIN ----------
+  const adminId = randomUUID()
+
+  const adminUser: User = {
+    id: adminId,
+    email: "admin@demo.com",
+    passwordHash: await hashPassword("admin123"),
+    role: "admin",
+  }
+
+  await redis.set(`user:${adminId}`, JSON.stringify(adminUser))
+  await redis.set(`user:email:${adminUser.email}`, adminId)
+
+  console.log("✔ Admin user created → admin@demo.com / admin123")
+
+  // ---------- EMPLOYEES ----------
+  for (let i = 0; i < Math.min(2, employees.length); i++) {
+    const emp = employees[i]
+
+    const userId = randomUUID()
+    const email = `emp${i + 1}@demo.com`
+
+    const employeeUser: User = {
+      id: userId,
+      email,
+      passwordHash: await hashPassword("emp123"),
+      role: "employee",
+      employeeId: emp.id,
+    }
+
+    await redis.set(`user:${userId}`, JSON.stringify(employeeUser))
+    await redis.set(`user:email:${email}`, userId)
+
+    console.log(`✔ Employee user created → ${email} / emp123`)
   }
 }
 

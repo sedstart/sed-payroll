@@ -1,15 +1,30 @@
 import { NextResponse } from "next/server"
-import { dataStore } from "@/lib/data-store"
+import { getRedisClient } from "@/lib/redis"
+import { getCurrentUser } from "@/lib/auth"
+import type { Payslip } from "@/lib/types"
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const employeeId = searchParams.get("employeeId") || undefined
-    const payrollRunId = searchParams.get("payrollRunId") || undefined
-
-    const payslips = await dataStore.getPayslips(employeeId, payrollRunId)
-    return NextResponse.json(payslips)
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch payslips" }, { status: 500 })
+export async function GET() {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  const redis = await getRedisClient()
+  const keys = await redis.keys("payslip:*")
+  const results: Payslip[] = []
+
+  for (const key of keys) {
+    const value = await redis.get(key)
+    if (!value) continue
+
+    const payslip = JSON.parse(value) as Payslip
+
+    if (user.role === "employee" && payslip.employeeId !== user.employeeId) {
+      continue
+    }
+
+    results.push(payslip)
+  }
+
+  return NextResponse.json(results)
 }

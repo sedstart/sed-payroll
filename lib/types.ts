@@ -1,8 +1,16 @@
 export type EmploymentType = "Full-time" | "Contract" | "Part-time"
 export type LeaveType = "Casual" | "Sick" | "Paid" | "Unpaid"
 export type AttendanceStatus = "Present" | "Absent" | "Half-day" | "WFH"
-export type UserRole = "Admin" | "HR" | "Manager" | "Employee"
+export type UserRole = "admin" | "employee"
 export type PayrollStatus = "Draft" | "Processed" | "Locked"
+
+export interface User {
+  id: string
+  email: string
+  passwordHash: string
+  role: UserRole
+  employeeId?: string
+}
 
 export interface Employee {
   id: string

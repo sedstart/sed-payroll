@@ -1,56 +1,57 @@
 import { NextResponse } from "next/server"
-import { dataStore } from "@/lib/data-store"
+import { getRedisClient } from "@/lib/redis"
+import { getCurrentUser } from "@/lib/auth"
 import type { Leave } from "@/lib/types"
+import { randomUUID } from "crypto"
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const employeeId = searchParams.get("employeeId") || undefined
-
-    const leaves = await dataStore.getLeaves(employeeId)
-    return NextResponse.json(leaves)
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch leaves" }, { status: 500 })
+export async function GET() {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-}
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const leave: Leave = {
-      id: `leave-${Date.now()}`,
-      status: "Pending",
-      ...body,
-    }
-    const created = await dataStore.addLeave(leave)
-    return NextResponse.json(created, { status: 201 })
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create leave request" }, { status: 500 })
-  }
-}
+  const redis = await getRedisClient()
+  const keys = await redis.keys("leave:*")
+  const results: Leave[] = []
 
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json()
-    const { id, ...updates } = body
-    const updated = await dataStore.updateLeave(id, updates)
+  for (const key of keys) {
+    const value = await redis.get(key)
+    if (!value) continue
 
-    if (!updated) {
-      return NextResponse.json({ error: "Leave not found" }, { status: 404 })
+    const leave = JSON.parse(value) as Leave
+
+    if (user.role === "employee" && leave.employeeId !== user.employeeId) {
+      continue
     }
 
-    await dataStore.addAuditLog({
-      id: `audit-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      userId: updates.approvedBy || "admin",
-      action: "UPDATE",
-      entity: "leave",
-      entityId: id,
-      changes: updates,
-    })
-
-    return NextResponse.json(updated)
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update leave" }, { status: 500 })
+    results.push(leave)
   }
+
+  return NextResponse.json(results)
+}
+
+export async function POST(req: Request) {
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const body = await req.json()
+
+  const leave: Leave = {
+    id: randomUUID(),
+    employeeId:
+      user.role === "admin" ? body.employeeId : user.employeeId!,
+    leaveType: body.leaveType,
+    startDate: body.startDate,
+    endDate: body.endDate,
+    days: body.days,
+    reason: body.reason,
+    status: "Pending",
+  }
+
+  const redis = await getRedisClient()
+  await redis.set(`leave:${leave.id}`, JSON.stringify(leave))
+
+  return NextResponse.json(leave, { status: 201 })
 }

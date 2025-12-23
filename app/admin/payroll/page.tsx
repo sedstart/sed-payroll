@@ -170,7 +170,6 @@ export default function PayrollPage() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
       <main className="flex-1 overflow-y-auto bg-background">
         <div className="border-b border-border bg-card">
           <div className="flex h-16 items-center justify-between px-8">

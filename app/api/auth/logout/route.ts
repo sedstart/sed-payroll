@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server"
+import { destroySession } from "@/lib/session"
 
 export async function POST() {
-  const response = NextResponse.json({ success: true })
-
-  // Clear session cookie
-  response.cookies.set("session", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 0,
-    path: "/",
-  })
-
-  return response
+  await destroySession()
+  return NextResponse.json({ success: true })
 }

@@ -1,20 +1,40 @@
+// app/api/auth/me/route.ts
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { verifySessionToken } from "@/lib/auth"
+import { getRedisClient } from "@/lib/redis"
+import type { User } from "@/lib/types"
+
+const SESSION_COOKIE_NAME = "auth_session"
 
 export async function GET() {
+  // ✅ cookies() is async in route handlers
   const cookieStore = await cookies()
-  const sessionToken = cookieStore.get("session")?.value
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
-  if (!sessionToken) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  if (!token) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
   }
 
-  const user = verifySessionToken(sessionToken)
+  const redis = await getRedisClient()
 
-  if (!user) {
+  // session:<token> → userId
+  const userId = await redis.get(`session:${token}`)
+  if (!userId) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 })
   }
 
-  return NextResponse.json({ user })
+  // user:<id> → User
+  const userJson = await redis.get(`user:${userId}`)
+  if (!userJson) {
+    return NextResponse.json({ error: "User not found" }, { status: 401 })
+  }
+
+  const user = JSON.parse(userJson) as User
+
+  return NextResponse.json({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    employeeId: user.employeeId ?? null,
+  })
 }
