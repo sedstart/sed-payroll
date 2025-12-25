@@ -23,9 +23,31 @@ export default async function EmployeeLeavesPage() {
           <CardTitle>My Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* existing table stays exactly as it was */}
-          {/* do NOT change UI here */}
+          {leaves.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No leave requests found
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {leaves.map((leave) => (
+                <div
+                  key={leave.id}
+                  className="flex justify-between text-sm"
+                  id={`leave-${leave.id}`}
+                >
+                  <div>
+                    <p className="font-medium">{leave.leaveType}</p>
+                    <p className="text-muted-foreground">
+                      {leave.startDate} → {leave.endDate} ({leave.days} days)
+                    </p>
+                  </div>
+                  <span>{leave.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
+
       </Card>
     </div>
   )

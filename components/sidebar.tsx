@@ -61,6 +61,15 @@ export function Sidebar() {
 
   const navigation =
     user.role === "admin" ? adminNavigation : employeeNavigation
+  
+  function isNavActive(pathname: string, href: string) {
+    if (href === "/employee") {
+      return pathname === "/employee"
+    }
+
+    return pathname === href || pathname.startsWith(href + "/")
+  }
+
 
   return (
     <div className="flex h-screen w-64 flex-col bg-card border-r border-border">
@@ -73,10 +82,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/")
-
+          const isActive = isNavActive(pathname, item.href)
           return (
             <Link
               key={item.id}
