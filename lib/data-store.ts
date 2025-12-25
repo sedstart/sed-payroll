@@ -1,252 +1,268 @@
+import { getRedisClient } from "@/lib/redis"
 import type {
   Employee,
-  SalaryStructure,
-  Attendance,
   Leave,
   LeaveBalance,
-  Deduction,
+  Attendance,
   PayrollRun,
   Payslip,
+  SalaryStructure,
   AuditLog,
-} from "./types"
-import { getRedisClient } from "./redis"
+  Deduction
+} from "@/lib/types"
 
-class DataStore {
-  // Redis keys
-  private KEYS = {
-    EMPLOYEES: "payroll:employees",
-    SALARY_STRUCTURES: "payroll:salary_structures",
-    ATTENDANCE: "payroll:attendance",
-    LEAVES: "payroll:leaves",
-    LEAVE_BALANCES: "payroll:leave_balances",
-    DEDUCTIONS: "payroll:deductions",
-    PAYROLL_RUNS: "payroll:payroll_runs",
-    PAYSLIPS: "payroll:payslips",
-    AUDIT_LOGS: "payroll:audit_logs",
-  }
+/**
+ * Redis key helpers
+ * (explicit instead of abstracted, to match your codebase)
+ */
+const leaveKey = (id: string) => `leave:${id}`
 
-  private async getRedis() {
-    return await getRedisClient()
-  }
+export const dataStore = {
+  /* =======================
+   * EMPLOYEES
+   * ======================= */
 
-  // Helper methods for Redis operations
-  private async hGetAll<T>(key: string): Promise<T[]> {
-    const redis = await this.getRedis()
-    const data = await redis.hGetAll(key)
-    return Object.values(data).map((item) => JSON.parse(item))
-  }
 
-  private async hGet<T>(key: string, field: string): Promise<T | null> {
-    const redis = await this.getRedis()
-    const data = await redis.hGet(key, field)
-    return data ? JSON.parse(data) : null
-  }
+  async getEmployees(): Promise<Employee[]> {
+    const redis = await getRedisClient()
+    const employees = await redis.hGetAll("payroll:employees")
 
-  private async hSet(key: string, field: string, value: any): Promise<void> {
-    const redis = await this.getRedis()
-    await redis.hSet(key, field, JSON.stringify(value))
-  }
+    return Object.values(employees).map((e) => JSON.parse(e))
+  },
 
-  private async hDel(key: string, field: string): Promise<void> {
-    const redis = await this.getRedis()
-    await redis.hDel(key, field)
-  }
+  async getEmployeeById(id: string): Promise<Employee | null> {
+    const redis = await getRedisClient()
+    const raw = await redis.hGet("payroll:employees", id)
 
-  private async lPush(key: string, value: any): Promise<void> {
-    const redis = await this.getRedis()
-    await redis.lPush(key, JSON.stringify(value))
-  }
-
-  private async lRange<T>(key: string, start: number, stop: number): Promise<T[]> {
-    const redis = await this.getRedis()
-    const data = await redis.lRange(key, start, stop)
-    return data.map((item) => JSON.parse(item))
-  }
-
-  // Employee Methods
-  async getEmployees() {
-    return await this.hGetAll<Employee>(this.KEYS.EMPLOYEES)
-  }
-
-  async getEmployee(id: string) {
-    return await this.hGet<Employee>(this.KEYS.EMPLOYEES, id)
-  }
-
-  async addEmployee(employee: Employee) {
-    await this.hSet(this.KEYS.EMPLOYEES, employee.id, employee)
-    // Initialize leave balance
-    await this.hSet(this.KEYS.LEAVE_BALANCES, employee.id, {
-      employeeId: employee.id,
-      casual: 10,
-      sick: 7,
-      paid: 15,
-    })
-    return employee
-  }
+    return raw ? JSON.parse(raw) : null
+  },
 
   async updateEmployee(id: string, updates: Partial<Employee>) {
-    const employee = await this.getEmployee(id)
-    if (employee) {
-      const updated = { ...employee, ...updates }
-      await this.hSet(this.KEYS.EMPLOYEES, id, updated)
-      return updated
-    }
-    return null
-  }
+    const redis = await getRedisClient()
+    const employee = await this.getEmployeeById(id)
+    if (!employee) throw new Error("Employee not found")
 
-  async deleteEmployee(id: string) {
-    await this.hDel(this.KEYS.EMPLOYEES, id)
-    return true
-  }
+    const updated = { ...employee, ...updates }
+    await redis.hSet(
+      "payroll:employees",
+      id,
+      JSON.stringify(updated)
+    )
 
-  // Salary Structure Methods
-  async getSalaryStructures() {
-    return await this.hGetAll<SalaryStructure>(this.KEYS.SALARY_STRUCTURES)
-  }
+    return updated
+  },
+  
+  /* =======================
+   * LEAVE BALANCE
+   * ======================= */
 
-  async getSalaryStructure(id: string) {
-    return await this.hGet<SalaryStructure>(this.KEYS.SALARY_STRUCTURES, id)
-  }
 
-  async addSalaryStructure(structure: SalaryStructure) {
-    await this.hSet(this.KEYS.SALARY_STRUCTURES, structure.id, structure)
-    return structure
-  }
+  async getLeaveBalance(employeeId: string): Promise<LeaveBalance> {
+  const redis = await getRedisClient()
+  const raw = await redis.hGet(
+    "payroll:leave_balances",
+    employeeId
+  )
 
-  async updateSalaryStructure(id: string, updates: Partial<SalaryStructure>) {
-    const structure = await this.getSalaryStructure(id)
-    if (structure) {
-      const updated = { ...structure, ...updates }
-      await this.hSet(this.KEYS.SALARY_STRUCTURES, id, updated)
-      return updated
-    }
-    return null
-  }
+  if (raw) return JSON.parse(raw)
 
-  // Attendance Methods
-  async getAttendance(employeeId?: string, startDate?: string, endDate?: string) {
-    let records = await this.hGetAll<Attendance>(this.KEYS.ATTENDANCE)
-    if (employeeId) {
-      records = records.filter((a) => a.employeeId === employeeId)
-    }
-    if (startDate && endDate) {
-      records = records.filter((a) => a.date >= startDate && a.date <= endDate)
-    }
-    return records
+  return {
+    employeeId,
+    casual: 0,
+    sick: 0,
+    paid: 0,
   }
+},
 
-  async addAttendance(attendance: Attendance) {
-    await this.hSet(this.KEYS.ATTENDANCE, attendance.id, attendance)
-    return attendance
-  }
+async updateLeaveBalance(
+  employeeId: string,
+  updates: Partial<LeaveBalance>
+) {
+  const redis = await getRedisClient()
+  const current = await this.getLeaveBalance(employeeId)
 
-  async updateAttendance(id: string, updates: Partial<Attendance>) {
-    const attendance = await this.hGet<Attendance>(this.KEYS.ATTENDANCE, id)
-    if (attendance) {
-      const updated = { ...attendance, ...updates }
-      await this.hSet(this.KEYS.ATTENDANCE, id, updated)
-      return updated
-    }
-    return null
-  }
+  const updated = { ...current, ...updates }
 
-  // Leave Methods
-  async getLeaves(employeeId?: string) {
-    let leaves = await this.hGetAll<Leave>(this.KEYS.LEAVES)
-    if (employeeId) {
-      leaves = leaves.filter((l) => l.employeeId === employeeId)
-    }
+  await redis.hSet(
+    "payroll:leave_balances",
+    employeeId,
+    JSON.stringify(updated)
+  )
+
+  return updated
+},
+
+  async deductLeaveBalance(leave: Leave) {
+    const balance = await this.getLeaveBalance(leave.employeeId)
+
+    const key =
+      leave.leaveType === "Casual"
+        ? "casual"
+        : leave.leaveType === "Sick"
+        ? "sick"
+        : "paid"
+
+    const remaining = Math.max(0, balance[key] - leave.days)
+
+    await this.updateLeaveBalance(leave.employeeId, {
+      [key]: remaining,
+    })
+  },
+
+  /* =======================
+   * LEAVES
+   * ======================= */
+
+  async getLeaves(): Promise<Leave[]> {
+    const redis = await getRedisClient()
+    const keys = await redis.keys("leave:*")
+    if (keys.length === 0) return []
+
+    const leaves = await redis.mGet(keys)
     return leaves
-  }
+      .filter(Boolean)
+      .map((l) => JSON.parse(l as string))
+  },
 
-  async getLeaveBalance(employeeId: string) {
-    return await this.hGet<LeaveBalance>(this.KEYS.LEAVE_BALANCES, employeeId)
-  }
+  async getLeavesByEmployeeId(employeeId: string): Promise<Leave[]> {
+    const leaves = await this.getLeaves()
+    return leaves.filter((l) => l.employeeId === employeeId)
+  },
 
-  async addLeave(leave: Leave) {
-    await this.hSet(this.KEYS.LEAVES, leave.id, leave)
+  async createLeave(leave: Leave) {
+    const redis = await getRedisClient()
+    await redis.set(leaveKey(leave.id), JSON.stringify(leave))
     return leave
-  }
+  },
 
   async updateLeave(id: string, updates: Partial<Leave>) {
-    const leave = await this.hGet<Leave>(this.KEYS.LEAVES, id)
-    if (leave) {
-      const updated = { ...leave, ...updates }
-      await this.hSet(this.KEYS.LEAVES, id, updated)
+    const redis = await getRedisClient()
+    const raw = await redis.get(leaveKey(id))
+    if (!raw) throw new Error("Leave not found")
 
-      // Update leave balance if approved
-      if (updates.status === "Approved" && leave.status !== "Approved") {
-        const balance = await this.getLeaveBalance(leave.employeeId)
-        if (balance) {
-          const leaveType = leave.leaveType.toLowerCase() as "casual" | "sick" | "paid"
-          if (leaveType in balance) {
-            balance[leaveType] = Math.max(0, balance[leaveType] - leave.days)
-            await this.hSet(this.KEYS.LEAVE_BALANCES, leave.employeeId, balance)
-          }
-        }
-      }
+    const leave: Leave = JSON.parse(raw)
+    const updatedLeave = { ...leave, ...updates }
 
-      return updated
+    // ✅ Deduct balance ONLY on first approval
+    if (
+      leave.status !== "Approved" &&
+      updates.status === "Approved"
+    ) {
+      await this.deductLeaveBalance(leave)
     }
-    return null
-  }
 
-  // Deduction Methods
-  async getDeductions() {
-    return await this.hGetAll<Deduction>(this.KEYS.DEDUCTIONS)
-  }
+    await redis.set(
+      leaveKey(id),
+      JSON.stringify(updatedLeave)
+    )
 
-  async addDeduction(deduction: Deduction) {
-    await this.hSet(this.KEYS.DEDUCTIONS, deduction.id, deduction)
-    return deduction
-  }
+    return updatedLeave
+  },
 
-  // Payroll Methods
-  async getPayrollRuns() {
-    return await this.hGetAll<PayrollRun>(this.KEYS.PAYROLL_RUNS)
-  }
+  /* =======================
+   * ATTENDANCE
+   * ======================= */
 
-  async addPayrollRun(payrollRun: PayrollRun) {
-    await this.hSet(this.KEYS.PAYROLL_RUNS, payrollRun.id, payrollRun)
-    return payrollRun
-  }
+  async getAttendance(): Promise<Attendance[]> {
+    const redis = await getRedisClient()
+    const records = await redis.hGetAll("payroll:attendance")
 
-  async updatePayrollRun(id: string, updates: Partial<PayrollRun>) {
-    const run = await this.hGet<PayrollRun>(this.KEYS.PAYROLL_RUNS, id)
-    if (run) {
-      const updated = { ...run, ...updates }
-      await this.hSet(this.KEYS.PAYROLL_RUNS, id, updated)
-      return updated
-    }
-    return null
-  }
+    return Object.values(records).map((r) =>
+      JSON.parse(r)
+    )
+  },
 
-  // Payslip Methods
-  async getPayslips(employeeId?: string, payrollRunId?: string) {
-    let payslips = await this.hGetAll<Payslip>(this.KEYS.PAYSLIPS)
-    if (employeeId) {
-      payslips = payslips.filter((p) => p.employeeId === employeeId)
-    }
-    if (payrollRunId) {
-      payslips = payslips.filter((p) => p.payrollRunId === payrollRunId)
-    }
-    return payslips
-  }
+  async getDeductions(): Promise<Deduction[]> {
+  const redis = await getRedisClient()
+  const deductions = await redis.hGetAll("payroll:deductions")
 
-  async addPayslip(payslip: Payslip) {
-    await this.hSet(this.KEYS.PAYSLIPS, payslip.id, payslip)
-    return payslip
-  }
+  return Object.values(deductions).map((d) =>
+    JSON.parse(d)
+  )
+},
 
-  // Audit Log Methods
+
+  /* =======================
+   * PAYROLL
+   * ======================= */
+
+  async getPayrollRuns(): Promise<PayrollRun[]> {
+    const redis = await getRedisClient()
+    const keys = await redis.keys("payroll-run:*")
+    if (keys.length === 0) return []
+
+    const runs = await redis.mGet(keys)
+    return runs
+      .filter(Boolean)
+      .map((r) => JSON.parse(r as string))
+  },
+
+  async getPayslips(): Promise<Payslip[]> {
+    const redis = await getRedisClient()
+    const keys = await redis.keys("payslip:*")
+    if (keys.length === 0) return []
+
+    const slips = await redis.mGet(keys)
+    return slips
+      .filter(Boolean)
+      .map((p) => JSON.parse(p as string))
+  },
+
+  /* =======================
+ * SALARY STRUCTURES
+ * ======================= */
+
+  async getSalaryStructures(): Promise<SalaryStructure[]> {
+    const redis = await getRedisClient()
+    const structures = await redis.hGetAll("payroll:salary_structures")
+
+    return Object.values(structures).map((s) =>
+      JSON.parse(s)
+    )
+  },
+
+  async addSalaryStructure(structure: SalaryStructure) {
+    const redis = await getRedisClient()
+
+    await redis.hSet(
+      "payroll:salary_structures",
+      structure.id,
+      JSON.stringify(structure)
+    )
+
+    return structure
+  },
+
+  /* =======================
+  * AUDIT LOGS
+  * ======================= */
+
   async addAuditLog(log: AuditLog) {
-    await this.lPush(this.KEYS.AUDIT_LOGS, log)
-  }
+    const redis = await getRedisClient()
+    await redis.set(
+      `audit-log:${log.id}`,
+      JSON.stringify(log)
+    )
+    return log
+  },
 
-  async getAuditLogs(limit = 50) {
-    const logs = await this.lRange<AuditLog>(this.KEYS.AUDIT_LOGS, 0, limit - 1)
-    return logs
-  }
+  async getAuditLogs(): Promise<AuditLog[]> {
+  const redis = await getRedisClient()
+  const keys = await redis.keys("audit-log:*")
+
+  if (keys.length === 0) return []
+
+  const logs = await redis.mGet(keys)
+
+  return logs
+    .filter(Boolean)
+    .map((l) => JSON.parse(l as string))
+    // newest first
+    .sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() -
+        new Date(a.timestamp).getTime()
+    )
+  },
+
 }
-
-export const dataStore = new DataStore()

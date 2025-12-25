@@ -1,57 +1,137 @@
 import { NextResponse } from "next/server"
-import { getRedisClient } from "@/lib/redis"
-import { getCurrentUser } from "@/lib/auth"
-import type { Leave } from "@/lib/types"
 import { randomUUID } from "crypto"
+import { getCurrentUser } from "@/lib/auth"
+import { dataStore } from "@/lib/data-store"
+import type { Leave } from "@/lib/types"
 
+function calculateLeaveDays(startDate: string, endDate: string): number {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+
+  if (end < start) {
+    throw new Error("End date cannot be before start date")
+  }
+
+  const diff =
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+
+  return Math.floor(diff) + 1 // inclusive
+}
+
+/**
+ * GET /api/leaves
+ * - Employee: only their leaves
+ * - Admin: all leaves
+ */
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const redis = await getRedisClient()
-  const keys = await redis.keys("leave:*")
-  const results: Leave[] = []
+  try {
+    const leaves =
+      user.role === "admin"
+        ? await dataStore.getLeaves()
+        : await dataStore.getLeavesByEmployeeId(user.employeeId!)
 
-  for (const key of keys) {
-    const value = await redis.get(key)
-    if (!value) continue
-
-    const leave = JSON.parse(value) as Leave
-
-    if (user.role === "employee" && leave.employeeId !== user.employeeId) {
-      continue
-    }
-
-    results.push(leave)
+    return NextResponse.json(leaves)
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to fetch leaves" },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json(results)
 }
 
+/**
+ * POST /api/leaves
+ * Employee requests a leave
+ */
 export async function POST(req: Request) {
   const user = await getCurrentUser()
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const body = await req.json()
+  try {
+    const body = await req.json()
+    const { leaveType, startDate, endDate, reason } = body
 
-  const leave: Leave = {
-    id: randomUUID(),
-    employeeId:
-      user.role === "admin" ? body.employeeId : user.employeeId!,
-    leaveType: body.leaveType,
-    startDate: body.startDate,
-    endDate: body.endDate,
-    days: body.days,
-    reason: body.reason,
-    status: "Pending",
+    if (!leaveType || !startDate || !endDate || !reason) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      )
+    }
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    if (end < start) {
+      return NextResponse.json(
+        { error: "End date cannot be before start date" },
+        { status: 400 }
+      )
+    }
+
+    const days =
+      Math.floor(
+        (end.getTime() - start.getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1
+
+    const leave: Leave = {
+      id: randomUUID(),
+      employeeId:
+        user.role === "admin" ? body.employeeId : user.employeeId!,
+      leaveType,
+      startDate,
+      endDate,
+      days,
+      reason,
+      status: "Pending",
+    }
+
+    await dataStore.createLeave(leave)
+
+    return NextResponse.json(leave, { status: 201 })
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Failed to create leave request" },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * PUT /api/leaves
+ * Admin approves / rejects a leave
+ */
+export async function PUT(req: Request) {
+  const user = await getCurrentUser()
+  if (!user || user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const redis = await getRedisClient()
-  await redis.set(`leave:${leave.id}`, JSON.stringify(leave))
+  try {
+    const body = await req.json()
+    const { id, status } = body
 
-  return NextResponse.json(leave, { status: 201 })
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "Missing leave id or status" },
+        { status: 400 }
+      )
+    }
+
+    const updatedLeave = await dataStore.updateLeave(id, { status })
+
+    return NextResponse.json(updatedLeave)
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to update leave status" },
+      { status: 500 }
+    )
+  }
 }

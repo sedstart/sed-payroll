@@ -6,6 +6,60 @@ import "dotenv/config"
 import { getRedisClient } from "../lib/redis"
 import type { Employee, SalaryStructure, Attendance, Deduction } from "../lib/types"
 
+function generatePayslip({
+  employee,
+  structure,
+  payrollRunId,
+  period,
+}: {
+  employee: Employee
+  structure: SalaryStructure
+  payrollRunId: string
+  period: string
+}) {
+  const grossSalary =
+    structure.basicSalary +
+    structure.hra +
+    structure.specialAllowance +
+    structure.bonus +
+    structure.variablePay
+
+  const incomeTax = Math.round(grossSalary * 0.1)
+  const providentFund = structure.employerPF
+  const insurance = structure.insurance
+
+  const totalDeductions =
+    incomeTax + providentFund + insurance
+
+  const netSalary = grossSalary - totalDeductions
+
+  return {
+    id: `ps-${employee.id}`,
+    employeeId: employee.id,
+    payrollRunId,
+    period,
+
+    basicSalary: structure.basicSalary,
+    hra: structure.hra,
+    specialAllowance: structure.specialAllowance,
+    bonus: structure.bonus,
+    variablePay: structure.variablePay,
+
+    grossSalary,
+    incomeTax,
+    providentFund,
+    insurance,
+    loanDeduction: 0,
+    totalDeductions,
+    netSalary,
+
+    workingDays: 22,
+    presentDays: 20,
+    leaveDays: 2,
+  }
+}
+
+
 async function clearAllUsers(redis: any) {
   console.log("[v0] Clearing existing users...")
   
@@ -33,12 +87,17 @@ async function seedRedisData() {
     await redis.del("payroll:employees")
     await redis.del("payroll:salary_structures")
     await redis.del("payroll:attendance")
-    await redis.del("payroll:leaves")
     await redis.del("payroll:leave_balances")
     await redis.del("payroll:deductions")
     await redis.del("payroll:payroll_runs")
     await redis.del("payroll:payslips")
     await redis.del("payroll:audit_logs")
+
+    const leaveKeys = await redis.keys("leave:*")
+    if (leaveKeys.length > 0) {
+      await redis.del(leaveKeys)
+      console.log(`[v0] Deleted ${leaveKeys.length} leave requests`)
+    }
 
     const sessionKeys = await redis.keys("session:*")
     if (sessionKeys.length > 0) {
@@ -313,6 +372,57 @@ async function seedUsers(redis: any, employees: any[]) {
 
     console.log(`✔ Employee user created → ${email} / emp123`)
   }
+
+      // ----------------------
+    // Seed Payroll Run
+    // ----------------------
+    console.log("[v0] Seeding payroll run...")
+
+    const payrollRun = {
+      id: "pr-1",
+      period: "Mar 2024",
+      startDate: "2024-03-01",
+      endDate: "2024-03-31",
+      status: "Draft",
+    }
+
+    await redis.set(
+      `payroll-run:${payrollRun.id}`,
+      JSON.stringify(payrollRun)
+    )
+
+    console.log("✔ Payroll run created → Mar 2024")
+
+    // ----------------------
+    // Seed Payslips (Auto-generated)
+    // ----------------------
+  console.log("[v0] Generating payslips...")
+
+  for (const employee of employees) {
+    const structureRaw = await redis.hGet(
+      "payroll:salary_structures",
+      employee.salaryStructureId
+    )
+
+    if (!structureRaw) continue
+
+    const structure: SalaryStructure = JSON.parse(structureRaw)
+
+    const payslip = generatePayslip({
+      employee,
+      structure,
+      payrollRunId: payrollRun.id,
+      period: payrollRun.period,
+    })
+
+    await redis.set(
+      `payslip:${payslip.id}`,
+      JSON.stringify(payslip)
+    )
+  }
+
+  console.log("✔ Payslips generated for all employees")
+
 }
 
 // Run the seed function
