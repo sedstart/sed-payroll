@@ -15,6 +15,7 @@ import { randomUUID } from "crypto"
  * Employee:
  *   - Can fetch ONLY their own attendance
  */
+
 export async function GET(req: Request) {
   const user = await getCurrentUser()
 
@@ -25,35 +26,35 @@ export async function GET(req: Request) {
   const redis = await getRedisClient()
   const url = new URL(req.url)
 
-  let employeeId: string | null = null
+  const employeeFilter =
+    user.role === "admin"
+      ? url.searchParams.get("employeeId")
+      : user.employeeId
 
-  if (user.role === "admin") {
-    // Admin can optionally filter by employeeId
-    employeeId = url.searchParams.get("employeeId")
-  } else {
-    // Employee can ONLY access their own data
-    employeeId = user.employeeId ?? null
+  const startDate = url.searchParams.get("startDate")
+  const endDate = url.searchParams.get("endDate")
+
+  const records = await redis.hGetAll("payroll:attendance")
+
+  let attendance = Object.values(records).map(
+    (r) => JSON.parse(r) as Attendance
+  )
+
+  // 🔐 Role isolation
+  if (employeeFilter) {
+    attendance = attendance.filter(
+      (a) => a.employeeId === employeeFilter
+    )
   }
 
-  // Fetch all attendance keys
-  const keys = await redis.keys("attendance:*")
-  const records: Attendance[] = []
-
-  for (const key of keys) {
-    const value = await redis.get(key)
-    if (!value) continue
-
-    const attendance = JSON.parse(value) as Attendance
-
-    // Enforce isolation
-    if (employeeId && attendance.employeeId !== employeeId) {
-      continue
-    }
-
-    records.push(attendance)
+  // 📅 Date filtering (admin page depends on this)
+  if (startDate && endDate) {
+    attendance = attendance.filter(
+      (a) => a.date >= startDate && a.date <= endDate
+    )
   }
 
-  return NextResponse.json(records)
+  return NextResponse.json(attendance)
 }
 
 /**
@@ -100,9 +101,10 @@ export async function POST(req: Request) {
     notes: body.notes,
   }
 
-  await redis.set(
-    `attendance:${attendance.id}`,
-    JSON.stringify(attendance)
+  await redis.hSet(
+  "payroll:attendance",
+  attendance.id,
+  JSON.stringify(attendance)
   )
 
   return NextResponse.json(attendance, { status: 201 })
