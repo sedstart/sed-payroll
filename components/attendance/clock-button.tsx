@@ -18,6 +18,11 @@ export function ClockButton({
       const res = await fetch("/api/attendance/clock", {
         method: "POST",
       })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error)
+        return
+      }
       const data = await res.json()
       setRecord(data)
     } catch (err) {
