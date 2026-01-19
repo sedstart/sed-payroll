@@ -1,12 +1,36 @@
 import { NextResponse } from "next/server"
 import { dataStore } from "@/lib/data-store"
-import type { SalaryStructure } from "@/lib/types"
+import { getCurrentUser } from "@/lib/auth"
+import type { Payslip } from "@/lib/types"
 
+/**
+ * POST /api/payroll/process
+ * Admin only
+ */
 export async function POST(request: Request) {
+  const user = await getCurrentUser()
+
+  // 🔐 Admin only
+  if (!user || user.role !== "admin") {
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403 }
+    )
+  }
+
   try {
     const { payrollRunId } = await request.json()
 
-    const payrollRun = await dataStore.getPayrollRunById(payrollRunId)
+    if (!payrollRunId) {
+      return NextResponse.json(
+        { error: "payrollRunId is required" },
+        { status: 400 }
+      )
+    }
+
+    const payrollRun =
+      await dataStore.getPayrollRunById(payrollRunId)
+
     if (!payrollRun) {
       return NextResponse.json(
         { error: "Payroll run not found" },
@@ -22,7 +46,8 @@ export async function POST(request: Request) {
     }
 
     const employees = await dataStore.getEmployees()
-    const salaryStructures = await dataStore.getSalaryStructures()
+    const salaryStructures =
+      await dataStore.getSalaryStructures()
 
     const structureMap = new Map(
       salaryStructures.map((s) => [s.id, s])
@@ -31,7 +56,9 @@ export async function POST(request: Request) {
     for (const employee of employees) {
       if (!employee.isActive) continue
 
-      const structure = structureMap.get(employee.salaryStructureId)
+      const structure = structureMap.get(
+        employee.salaryStructureId
+      )
       if (!structure) continue
 
       const grossSalary =
@@ -50,7 +77,7 @@ export async function POST(request: Request) {
 
       const netSalary = grossSalary - totalDeductions
 
-      const payslip = {
+      const payslip: Payslip = {
         id: `payslip-${employee.id}-${payrollRun.id}`,
         employeeId: employee.id,
         payrollRunId: payrollRun.id,
@@ -78,16 +105,17 @@ export async function POST(request: Request) {
       await dataStore.addPayslip(payslip)
     }
 
-    const updatedRun = await dataStore.updatePayrollRun(payrollRun.id, {
-      status: "Processed",
-      processedDate: new Date().toISOString(),
-      processedBy: "admin",
-    })
+    const updatedRun =
+      await dataStore.updatePayrollRun(payrollRun.id, {
+        status: "Processed",
+        processedDate: new Date().toISOString(),
+        processedBy: "admin"
+      })
 
     await dataStore.addAuditLog({
       id: `audit-${Date.now()}`,
       timestamp: new Date().toISOString(),
-      userId: "admin",
+      userId: user.id,
       action: "PROCESS",
       entity: "payroll_run",
       entityId: payrollRun.id,
