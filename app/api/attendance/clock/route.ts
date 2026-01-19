@@ -69,5 +69,8 @@ export async function POST() {
   }
 
   // 3️⃣ Already clocked out → NO-OP
-  return NextResponse.json(existing)
+  return NextResponse.json(
+    { error: "Attendance already completed for today" },
+    { status: 409 }
+  )
 }
