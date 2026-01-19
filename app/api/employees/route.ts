@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { redis } from "@/lib/redis"
 
 export async function GET() {
+  console.log("v2 with negative scenarios")
   try {
     const user = await getCurrentUser()
 
