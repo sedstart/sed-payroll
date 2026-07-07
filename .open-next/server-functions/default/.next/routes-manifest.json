@@ -1,0 +1,266 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "onMatchHeaders": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/api/employee/payslips/[id]",
+      "regex": "^/api/employee/payslips/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/employee/payslips/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/employees/[id]",
+      "regex": "^/api/employees/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/employees/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/leave-balance/[employeeId]",
+      "regex": "^/api/leave\\-balance/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPemployeeId": "nxtPemployeeId"
+      },
+      "namedRegex": "^/api/leave\\-balance/(?<nxtPemployeeId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/payroll/[id]",
+      "regex": "^/api/payroll/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/payroll/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/employee/payslips/[id]",
+      "regex": "^/employee/payslips/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/employee/payslips/(?<nxtPid>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/admin",
+      "regex": "^/admin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin(?:/)?$"
+    },
+    {
+      "page": "/admin/attendance",
+      "regex": "^/admin/attendance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/attendance(?:/)?$"
+    },
+    {
+      "page": "/admin/employees",
+      "regex": "^/admin/employees(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/employees(?:/)?$"
+    },
+    {
+      "page": "/admin/leaves",
+      "regex": "^/admin/leaves(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/leaves(?:/)?$"
+    },
+    {
+      "page": "/admin/payroll",
+      "regex": "^/admin/payroll(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/payroll(?:/)?$"
+    },
+    {
+      "page": "/admin/payslips",
+      "regex": "^/admin/payslips(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/payslips(?:/)?$"
+    },
+    {
+      "page": "/admin/reports",
+      "regex": "^/admin/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reports(?:/)?$"
+    },
+    {
+      "page": "/admin/settings",
+      "regex": "^/admin/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/settings(?:/)?$"
+    },
+    {
+      "page": "/api/attendance",
+      "regex": "^/api/attendance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/attendance(?:/)?$"
+    },
+    {
+      "page": "/api/attendance/clock",
+      "regex": "^/api/attendance/clock(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/attendance/clock(?:/)?$"
+    },
+    {
+      "page": "/api/audit-logs",
+      "regex": "^/api/audit\\-logs(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/audit\\-logs(?:/)?$"
+    },
+    {
+      "page": "/api/auth/login",
+      "regex": "^/api/auth/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/login(?:/)?$"
+    },
+    {
+      "page": "/api/auth/logout",
+      "regex": "^/api/auth/logout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/logout(?:/)?$"
+    },
+    {
+      "page": "/api/auth/me",
+      "regex": "^/api/auth/me(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/auth/me(?:/)?$"
+    },
+    {
+      "page": "/api/employee/payslips",
+      "regex": "^/api/employee/payslips(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/employee/payslips(?:/)?$"
+    },
+    {
+      "page": "/api/employees",
+      "regex": "^/api/employees(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/employees(?:/)?$"
+    },
+    {
+      "page": "/api/leaves",
+      "regex": "^/api/leaves(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/leaves(?:/)?$"
+    },
+    {
+      "page": "/api/payroll",
+      "regex": "^/api/payroll(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/payroll(?:/)?$"
+    },
+    {
+      "page": "/api/payroll/process",
+      "regex": "^/api/payroll/process(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/payroll/process(?:/)?$"
+    },
+    {
+      "page": "/api/payslips",
+      "regex": "^/api/payslips(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/payslips(?:/)?$"
+    },
+    {
+      "page": "/api/salary-structures",
+      "regex": "^/api/salary\\-structures(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/salary\\-structures(?:/)?$"
+    },
+    {
+      "page": "/dashboard",
+      "regex": "^/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/employee",
+      "regex": "^/employee(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/employee(?:/)?$"
+    },
+    {
+      "page": "/employee/attendance",
+      "regex": "^/employee/attendance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/employee/attendance(?:/)?$"
+    },
+    {
+      "page": "/employee/leaves",
+      "regex": "^/employee/leaves(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/employee/leaves(?:/)?$"
+    },
+    {
+      "page": "/employee/payslips",
+      "regex": "^/employee/payslips(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/employee/payslips(?:/)?$"
+    },
+    {
+      "page": "/login",
+      "regex": "^/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/login(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
